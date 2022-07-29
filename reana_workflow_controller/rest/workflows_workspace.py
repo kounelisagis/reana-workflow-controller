@@ -44,7 +44,7 @@ from reana_workflow_controller.rest.utils import mv_files
 blueprint = Blueprint("workspaces", __name__)
 
 
-@blueprint.route("/workflows/<workflow_id_or_name>/workspace", methods=["POST"])
+@blueprint.route("/workflows/<workflow_id_or_name>/workspace/file", methods=["POST"])
 def upload_file(workflow_id_or_name):
     r"""Upload file to workspace.
 
@@ -159,6 +159,115 @@ def upload_file(workflow_id_or_name):
         return (
             jsonify(
                 {"message": "{} has been successfully uploaded.".format(full_file_name)}
+            ),
+            200,
+        )
+
+    except ValueError:
+        return (
+            jsonify(
+                {
+                    "message": "REANA_WORKON is set to {0}, but "
+                    "that workflow does not exist. "
+                    "Please set your REANA_WORKON environment"
+                    "variable appropriately.".format(workflow_id_or_name)
+                }
+            ),
+            404,
+        )
+    except KeyError as e:
+        return jsonify({"message": str(e)}), 400
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+
+@blueprint.route("/workflows/<workflow_id_or_name>/workspace/rucio", methods=["POST"])
+def fetch_rucio_files(workflow_id_or_name):
+    r"""Fetch Rucio files to workspace.
+
+    ---
+    post:
+      summary: Fetches Rucio files to the workspace.
+      description: >-
+        This resource is expecting Rucio DID(s) to place in the workspace.
+      operationId: fetch_rucio_files
+      consumes:
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: user
+          in: query
+          description: Required. UUID of workflow owner.
+          required: true
+          type: string
+        - name: workflow_id_or_name
+          in: path
+          description: Required. Workflow UUID or name.
+          required: true
+          type: string
+        - name: rucio_dids
+          in: body
+          description: Required. Rucio DID(s) of files to add to the workspace.
+          required: true
+          schema:
+            type: array
+      responses:
+        200:
+          description: >-
+            Request succeeded. Rucio DIDs successfully fetched.
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          examples:
+            application/json:
+              {
+                "message": "`file_name` has been successfully uploaded.",
+              }
+        400:
+          description: >-
+            Request failed. The incoming data specification seems malformed
+        404:
+          description: >-
+            Request failed. Workflow does not exist.
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          examples:
+            application/json:
+              {
+                "message": "Workflow cdcf48b1-c2f3-4693-8230-b066e088c6ac does
+                            not exist",
+              }
+        500:
+          description: >-
+            Request failed. Internal controller error.
+    """
+    try:
+        if not ("application/octet-stream" in request.headers.get("Content-Type")):
+            return (
+                jsonify(
+                    {
+                        "message": f"Wrong Content-Type "
+                        f'{request.headers.get("Content-Type")} '
+                        f"use application/octet-stream"
+                    }
+                ),
+                400,
+            )
+
+        user_uuid = request.args["user"]
+        rucio_dids = json.loads(request.stream.read())
+
+        # do something with rucio_dids
+
+        return (
+            jsonify(
+                {"message": "DID(s) has been successfully uploaded."}
             ),
             200,
         )
