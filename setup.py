@@ -65,6 +65,7 @@ install_requires = [
     "uWSGI>=2.0.17",
     "uwsgitop>=0.10",
     "webargs>=6.1.0,<7.0.0",
+    "rucio-clients>=1.29.1",
 ]
 
 packages = find_packages()

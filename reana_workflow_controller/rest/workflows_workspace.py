@@ -263,6 +263,10 @@ def fetch_rucio_files(workflow_id_or_name):
         user_uuid = request.args["user"]
         rucio_dids = json.loads(request.stream.read())
 
+        from rucio.client import Client as RucioClient
+        rucio_client = RucioClient()
+        print(rucio_client.whoami())
+
         # do something with rucio_dids
 
         return (
