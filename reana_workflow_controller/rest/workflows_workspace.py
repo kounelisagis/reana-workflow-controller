@@ -40,6 +40,7 @@ from reana_workflow_controller.rest.utils import (
     use_paginate_args,
 )
 from reana_workflow_controller.rest.utils import mv_files
+from rucio.client.downloadclient import DownloadClient as RucioDownloadClient
 
 blueprint = Blueprint("workspaces", __name__)
 
@@ -263,11 +264,16 @@ def fetch_rucio_files(workflow_id_or_name):
         user_uuid = request.args["user"]
         rucio_dids = json.loads(request.stream.read())
 
-        from rucio.client import Client as RucioClient
-        rucio_client = RucioClient()
-        print(rucio_client.whoami())
+        workflow = _get_workflow_with_uuid_or_name(workflow_id_or_name, user_uuid)
+        absolute_workspace_path = workflow.workspace_path
+        if not os.path.exists(absolute_workspace_path):
+            os.makedirs(absolute_workspace_path)
 
-        # do something with rucio_dids
+        RucioDownloadClient().download_dids([{'did': did, 'base_dir': absolute_workspace_path} for did in rucio_dids])
+
+        # update user and workflow resource disk quota
+        store_workflow_disk_quota(workflow, bytes_to_sum=request.content_length)
+        update_users_disk_quota(workflow.owner, bytes_to_sum=request.content_length)
 
         return (
             jsonify(

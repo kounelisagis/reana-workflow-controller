@@ -5,16 +5,35 @@
 # under the terms of the MIT License; see LICENSE file for more details.
 
 # Install base image and its dependencies
-FROM python:3.8-slim
+FROM centos/python-38-centos7:latest
+LABEL maintainer = "Agisilaos Kounelis agisilaos.kounelis@cern.ch"
+
+USER root
 # hadolint ignore=DL3008, DL3013, DL3015
-RUN apt-get update && \
-    apt-get install -y \
+RUN yum install -y epel-release
+RUN yum update -y && \
+    yum install -y \
       gcc \
       git \
+      gfal2-all \
+      gfal2-util \
       vim-tiny && \
-      apt-get clean && \
-      rm -rf /var/lib/apt/lists/* && \
+    yum clean all && \
+    rm -rf /var/cache/yum && \
     pip install --upgrade pip
+# gfal2-python bindings
+RUN curl -o /etc/yum.repos.d/gfal2-repo.repo https://dmc-repo.web.cern.ch/dmc-repo/dmc-el7.repo && \
+    git clone --branch v1.12.0 https://github.com/cern-fts/gfal2-python.git && \
+    cd gfal2-python/ && \
+    ./ci/fedora-packages.sh && \
+    cd packaging/ && \
+    RPMBUILD_SRC_EXTRA_FLAGS="--without docs --without python2" make srpm && \
+    yum-builddep -y python3-gfal2 && \
+    pip install gfal2-python
+# Certificates
+RUN curl -Lo /etc/pki/tls/certs/CERN-bundle.pem https://gitlab.cern.ch/plove/rucio/-/raw/7121c7200257a4c537b56ce6e7e438f0b35c6e48/etc/web/CERN-bundle.pem
+RUN curl -o /etc/yum.repos.d/EGI-trustanchors.repo https://raw.githubusercontent.com/indigo-iam/egi-trust-anchors-container/main/EGI-trustanchors.repo && \
+    yum -y install ca-certificates ca-policy-egi-core
 
 # Install dependencies
 COPY requirements.txt /code/
